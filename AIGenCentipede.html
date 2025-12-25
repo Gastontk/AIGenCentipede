@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Snake Game</title>
+    <style>
+        :root{--panel:#0f1724;--accent:#7c3aed;--accent-2:#06b6d4;--muted:rgba(255,255,255,0.85)}
+        html,body{height:100%;}
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: radial-gradient(1200px 600px at 10% 20%, #2b0f1f 0%, #0b0710 25%, #04121a 60%), linear-gradient(180deg,#071428 0%, #071022 100%);
+            color: var(--muted);
+            overflow: auto;
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 50px 20px 20px 20px;
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .instructions-panel {
+            width: 140px;
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .instructions-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .instructions-panel p {
+            margin: 0 0 8px 0;
+            font-size: 11px;
+        }
+
+        canvas {
+            background: linear-gradient(135deg, #2d5016 0%, #3a6b1f 25%, #4a7f2a 50%, #3a6b1f 75%, #2d5016 100%);
+            display: block;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(2,6,23,0.8), inset 0 1px 0 rgba(255,255,255,0.02);
+            border: 2px solid #1a3009;
+        }
+
+
+        .controls-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+            max-width: 640px;
+        }
+
+        .game-info {
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            display:flex;
+            gap:12px;
+            align-items:center;
+            box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+        }
+
+        .buttons-row { display:flex; gap:8px; justify-content: center; }
+        button {
+            background: linear-gradient(180deg,var(--accent),#5b21b6);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 6px 18px rgba(92,33,182,0.25);
+        }
+        button.secondary{background:linear-gradient(180deg,var(--accent-2),#0284c7)}
+
+        .sliders-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+            width: 100%;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .slider-group label {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .slider-group input[type="range"] {
+            width: 100px;
+        }
+
+        .slider-label-value {
+            font-weight: 700;
+            font-size: 11px;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* overlay for game over */
+        #overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(3,7,18,0.8);color:#fff;padding:22px;border-radius:12px;display:none;z-index:40;box-shadow:0 20px 60px rgba(2,6,23,0.8)}
+        #overlay h2{margin:0 0 8px 0}
+        #overlay p{margin:0 0 12px 0;color:rgba(255,255,255,0.85)}
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="game-wrapper">
+            <!-- English instructions on left -->
+            <div class="instructions-panel">
+                <h3>HOW TO PLAY</h3>
+                <p>Eat food to grow</p>
+                <p>Avoid walls & yourself</p>
+                <p>Use arrow keys or WASD</p>
+            </div>
+
+            <!-- Game field in center -->
+            <div style="flex: 0 0 auto;">
+                <canvas id="gameCanvas" width="600" height="600"></canvas>
+            </div>
+
+            <!-- Thai instructions on right -->
+            <div class="instructions-panel">
+                <h3>วิธีการเล่น</h3>
+                <p>กินอาหารเพื่อเติบโต</p>
+                <p>หลีกเลี่ยงกำแพงและตัวเอง</p>
+                <p>ใช้ลูกศรหรือ WASD</p>
+            </div>
+        </div>
+
+        <div class="controls-bottom">
+            <div class="game-info">
+                <div>Score <span style="font-size:11px;color:rgba(255,255,255,0.5)">(คะแนน)</span>: <strong id="score">0</strong></div>
+                <div>Length <span style="font-size:11px;color:rgba(255,255,255,0.5)">(ความยาว)</span>: <strong id="length">0</strong></div>
+            </div>
+
+            <div class="buttons-row">
+                <button id="startPauseBtn">Pause <span style="font-size:11px;margin-left:4px">(หยุด)</span></button>
+                <button id="resetBtn" class="secondary">Restart <span style="font-size:11px;margin-left:4px">(เริ่มใหม่)</span></button>
+            </div>
+
+            <div class="sliders-row" id="slidersContainer"></div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h2 id="overlayTitle">Game Over</h2>
+        <p id="overlayMsg">Your score: 0</p>
+        <div style="display:flex;gap:8px;justify-content:center"><button id="overlayRestart">Play Again</button><button id="overlayClose" class="secondary">Close</button></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', initGame);
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const lengthElement = document.getElementById('length');
+        const startPauseBtn = document.getElementById('startPauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayMsg = document.getElementById('overlayMsg');
+        const overlayRestart = document.getElementById('overlayRestart');
+        const overlayClose = document.getElementById('overlayClose');
+
+        let snake = [];
+        let food = {};
+        let direction = 'right';
+        let nextDirection = 'right';
+        let score = 0;
+        let desiredLength = 3; // how many segments the snake should have
+
+        // visual smoothing: separate visual segments for interpolation
+        let visual = [];
+
+        // user-tunable parameters (defaults)
+        let slitherFreq = 6;      // how fast the slither wave travels
+        let slitherAmp = 8;       // how wide the slither is (px)
+        let legLengthBase = 10;   // base leg length in px
+        let legSwingAmp = 6;      // leg swing amplitude
+        let toesEnabled = true;   // draw toes/joint tips
+
+        // persistence helpers
+        function loadSettings() {
+            const saved = localStorage.getItem('centipedeSettings');
+            if (saved) {
+                try {
+                    const s = JSON.parse(saved);
+                    slitherFreq = s.slitherFreq ?? slitherFreq;
+                    slitherAmp = s.slitherAmp ?? slitherAmp;
+                    legLengthBase = s.legLengthBase ?? legLengthBase;
+                    legSwingAmp = s.legSwingAmp ?? legSwingAmp;
+                    toesEnabled = s.toesEnabled ?? toesEnabled;
+                } catch (e) { /* ignore */ }
+            }
+        }
+        function saveSettings() {
+            localStorage.setItem('centipedeSettings', JSON.stringify({slitherFreq, slitherAmp, legLengthBase, legSwingAmp, toesEnabled}));
+        }
+
+        // Insert simple UI controls below canvas
+        function ensureUI() {
+            const container = document.getElementById('slidersContainer');
+            if (!container) return;
+            if (document.getElementById('controlsInserted')) return;
+            const wrapper = document.createElement('div');
+            wrapper.id = 'controlsInserted';
+            wrapper.style.display = 'flex';
+            wrapper.style.gap = '12px';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.flexWrap = 'wrap';
+            wrapper.style.justifyContent = 'center';
+            wrapper.style.width = '100%';
+            wrapper.innerHTML = `
+                <div class="slider-group">
+                    <label>Slither Amp <span style="font-size:10px;color:rgba(255,255,255,0.5);display:block;margin-top:2px\">(ความกว้างริ้ว)</span> <span id="slitherAmpLabel" class="slider-label-value"></span></label>
+                    <input id="slitherAmp" type="range" min="0" max="20" step="0.1" value="${slitherAmp}" />
+                </div>
+                <div class="slider-group">
+                    <label>Slither Freq <span style="font-size:10px;color:rgba(255,255,255,0.5);display:block;margin-top:2px\">(ความเร็วริ้ว)</span> <span id="slitherFreqLabel" class="slider-label-value"></span></label>
+                    <input id="slitherFreq" type="range" min="0" max="15" step="0.01" value="${slitherFreq}" />
+                </div>
+                <div class="slider-group">
+                    <label>Leg Length <span style="font-size:10px;color:rgba(255,255,255,0.5);display:block;margin-top:2px\">(ความยาวขา)</span> <span id="legLenLabel" class="slider-label-value"></span></label>
+                    <input id="legLen" type="range" min="0" max="24" step="0.1" value="${legLengthBase}" />
+                </div>
+                <div class="slider-group">
+                    <label>Leg Swing <span style="font-size:10px;color:rgba(255,255,255,0.5);display:block;margin-top:2px\">(การโยกขา)</span> <span id="legSwingLabel" class="slider-label-value"></span></label>
+                    <input id="legSwing" type="range" min="0" max="3" step="0.01" value="${legSwingAmp}" />
+                </div>
+                <div class="slider-group">
+                    <label style="display:flex;align-items:center;gap:6px;">Toes <span style="font-size:10px;color:rgba(255,255,255,0.5)\">(นิ้วเท้า)</span> <input id="toesToggle" type="checkbox" ${toesEnabled? 'checked':''} /></label>
+                </div>
+            `;
+            container.appendChild(wrapper);
+        }
+
+        // ensure UI on load
+        window.addEventListener('DOMContentLoaded', ensureUI);
+
+        // timing
+        let moveDelay = 140; // ms between moves (faster feel)
+        let moveIntervalId = null;
+
+        // Render loop id
+        let rafId = null;
+
+        let running = true;
+
+        function initGame() {
+            loadSettings();
+            ensureUI();
+            const slitherAmpEl = document.getElementById('slitherAmp');
+            const slitherFreqEl = document.getElementById('slitherFreq');
+            const legLenEl = document.getElementById('legLen');
+            const legSwingEl = document.getElementById('legSwing');
+            const toesToggle = document.getElementById('toesToggle');
+            const setLabel = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v.toFixed(2); };
+
+            // initialize from UI (if present)
+            if (slitherAmpEl) slitherAmpEl.value = slitherAmp;
+            if (slitherFreqEl) slitherFreqEl.value = slitherFreq;
+            if (legLenEl) legLenEl.value = legLengthBase;
+            if (legSwingEl) legSwingEl.value = legSwingAmp;
+            if (toesToggle) toesToggle.checked = toesEnabled;
+
+            // attach handlers with save
+            if (slitherAmpEl) slitherAmpEl.oninput = (e)=>{ slitherAmp = Number(e.target.value); setLabel('slitherAmpLabel', slitherAmp); saveSettings(); };
+            if (slitherFreqEl) slitherFreqEl.oninput = (e)=>{ slitherFreq = Number(e.target.value); setLabel('slitherFreqLabel', slitherFreq); saveSettings(); };
+            if (legLenEl) legLenEl.oninput = (e)=>{ legLengthBase = Number(e.target.value); setLabel('legLenLabel', legLengthBase); saveSettings(); };
+            if (legSwingEl) legSwingEl.oninput = (e)=>{ legSwingAmp = Number(e.target.value); setLabel('legSwingLabel', legSwingAmp); saveSettings(); };
+            if (toesToggle) toesToggle.onchange = (e)=>{ toesEnabled = e.target.checked; saveSettings(); };
+
+            // update labels initially
+            setLabel('slitherAmpLabel', slitherAmp);
+            setLabel('slitherFreqLabel', slitherFreq);
+            setLabel('legLenLabel', legLengthBase);
+            setLabel('legSwingLabel', legSwingAmp);
+
+            resetGame();
+            startGame();
+            rafId = requestAnimationFrame(render);
+            startPauseBtn.textContent = 'Pause';
+        }
+
+        function resetGame() {
+            snake = [
+                {x: 100, y: 100},
+                {x: 80, y: 100},
+                {x: 60, y: 100}
+            ];
+            // visual copies
+            visual = snake.map(p => ({x: p.x, y: p.y}));
+
+            desiredLength = snake.length;
+            direction = 'right';
+            nextDirection = 'right';
+            placeFood();
+            score = 0;
+            scoreElement.textContent = score;
+            lengthElement.textContent = desiredLength - 1;
+            hideOverlay();
+
+            if (moveIntervalId) {
+                clearInterval(moveIntervalId);
+                moveIntervalId = null;
+            }
+        }
+
+        // particles for eaten food effects
+        let particles = [];
+
+        function placeFood() {
+            // align food to 20x20 grid for consistency with movement
+            const grid = 20;
+            const cols = Math.floor(canvas.width / grid);
+            const rows = Math.floor(canvas.height / grid);
+            food = {
+                x: Math.floor(Math.random() * cols) * grid,
+                y: Math.floor(Math.random() * rows) * grid,
+                // choose a food type that a snake would enjoy
+                type: ['mouse','egg','frog'][Math.floor(Math.random()*3)],
+                ttl: 0
+            };
+            // ensure not on snake
+            for (let s of snake) {
+                if (s.x === food.x && s.y === food.y) return placeFood();
+            }
+        }
+
+        function startGame() {
+            if (moveIntervalId) clearInterval(moveIntervalId);
+            moveIntervalId = setInterval(moveSnake, moveDelay);
+            running = true;
+            startPauseBtn.textContent = 'Pause';
+        }
+
+        function pauseGame() {
+            if (moveIntervalId) clearInterval(moveIntervalId);
+            moveIntervalId = null;
+            running = false;
+            startPauseBtn.textContent = 'Start';
+        }
+
+        function endGame() {
+            if (moveIntervalId) clearInterval(moveIntervalId);
+            moveIntervalId = null;
+            running = false;
+            showOverlay('Game Over', 'Your score: ' + score);
+            startPauseBtn.textContent = 'Start';
+        }
+
+        function spawnParticles(x,y,color){
+            for (let i=0;i<18;i++){
+                const a = Math.random()*Math.PI*2;
+                const s = Math.random()*2+1;
+                particles.push({x:x+10,y:y+10,vx:Math.cos(a)* (Math.random()*3 + 1), vy:Math.sin(a)*(Math.random()*3+1), life: 40 + Math.random()*20, size: s, color});
+            }
+        }
+
+        function updateGame() {
+            // check eat
+            if (snake[0].x === food.x && snake[0].y === food.y) {
+                // spawn tasty particles depending on type
+                if (food.type === 'mouse') spawnParticles(food.x, food.y, '#b49b7c');
+                else if (food.type === 'egg') spawnParticles(food.x, food.y, '#fff7e6');
+                else spawnParticles(food.x, food.y, '#9ae6b4');
+
+                desiredLength++;
+                score += (food.type === 'egg' ? 15 : 10);
+                scoreElement.textContent = score;
+                lengthElement.textContent = desiredLength - 1;
+                placeFood();
+            }
+            // commit direction
+            if (nextDirection) direction = nextDirection;
+        }
+
+        function moveSnake() {
+            // compute new head
+            const grid = 20;
+            const head = {x: snake[0].x, y: snake[0].y};
+            if (direction === 'up') head.y -= grid;
+            else if (direction === 'down') head.y += grid;
+            else if (direction === 'left') head.x -= grid;
+            else if (direction === 'right') head.x += grid;
+
+            // collisions
+            const hitWall = head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height;
+            const hitSelf = snake.some(segment => segment.x === head.x && segment.y === head.y);
+            if (hitWall || hitSelf) {
+                // game over
+                endGame();
+                return;
+            }
+
+            snake.unshift(head);
+            // trim tail to desired length
+            while (snake.length > desiredLength) snake.pop();
+
+            // keep visual array synced: insert copy of head and trim
+            visual.unshift({x: head.x, y: head.y});
+            while (visual.length > desiredLength) visual.pop();
+
+            updateGame();
+        }
+
+        // helper: draw smooth continuous body and head with eyes
+        function render(timestamp) {
+            // clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // grass field grid
+            const grid = 20;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(100,140,60,0.25)';
+            ctx.lineWidth = 1;
+            for (let x=0;x<canvas.width;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
+            for (let y=0;y<canvas.height;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
+            ctx.restore();
+            
+            // grass texture - subtle random darker spots for depth
+            ctx.save();
+            for (let i=0;i<50;i++){
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 8 + 3;
+                ctx.fillStyle = `rgba(20,50,10,${Math.random() * 0.1 + 0.05})`;
+                ctx.fillRect(x, y, size, size);
+            }
+            ctx.restore();
+
+            // draw food depending on its type
+            drawFood(food);
+
+            // draw particles
+            if (particles.length>0){
+                for (let i=particles.length-1;i>=0;i--){
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 1; p.size *= 0.99;
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, p.life/60);
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    if (p.life<=0) particles.splice(i,1);
+                }
+            }
+
+            // interpolate visual positions toward logical positions
+            const smoothFactor = 0.22; // higher = snappier, lower = more slither
+            for (let i=0;i<visual.length;i++){
+                const v = visual[i];
+                const target = snake[i] || visual[i];
+                v.x += (target.x - v.x) * smoothFactor;
+                v.y += (target.y - v.y) * smoothFactor;
+            }
+
+            if (visual.length >= 2) {
+                // create slither-augmented points from visual positions
+                const pts = [];
+                const time = (timestamp || performance.now()) / 1000;
+                const phaseStep = 0.9; // phase difference per segment
+                for (let i=0;i<visual.length;i++){
+                    const v = visual[i];
+                    // derive forward vector for this segment
+                    let fx=0, fy=0;
+                    if (i<visual.length-1){ fx = visual[i].x - visual[i+1].x; fy = visual[i].y - visual[i+1].y; }
+                    else if (i>0){ fx = visual[i-1].x - visual[i].x; fy = visual[i-1].y - visual[i].y; }
+                    const len = Math.hypot(fx,fy) || 1; fx/=len; fy/=len;
+                    // perpendicular
+                    const px = -fy, py = fx;
+                    // amplitude falloff along body (head more pronounced)
+                    const falloff = 1 - (i / visual.length);
+                    const phase = time * slitherFreq + i * phaseStep;
+                    const offset = Math.sin(phase) * slitherAmp * falloff;
+                    pts.push({x: v.x + 10 + px * offset, y: v.y + 10 + py * offset});
+                }
+
+                // draw legs for a centipede look (behind the body)
+                ctx.save();
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                for (let i=1;i<pts.length;i++){
+                    const p = pts[i];
+                    // find local tangent using neighbors
+                    const prev = pts[i-1] || pts[i];
+                    const next = pts[i+1] || pts[i-1] || pts[i];
+                    const tx = next.x - prev.x;
+                    const ty = next.y - prev.y;
+                    const tlen = Math.hypot(tx,ty) || 1;
+                    const nx = -ty / tlen; // perpendicular
+                    const ny = tx / tlen;
+                    // alternate sides and animate swing
+                    const side = (i % 2 === 0) ? 1 : -1;
+                    const legPhase = time * 12 + i * 0.7;
+                    const swing = Math.sin(legPhase) * legSwingAmp; // leg swing uses global
+                    const baseLen = legLengthBase + (i % 3); // slight variety
+                    const tipX = p.x + nx * side * (baseLen + swing);
+                    const tipY = p.y + ny * side * (baseLen + swing);
+                    // draw a two-segment leg for a natural bend
+                    const midX = p.x + nx * side * ((baseLen + swing) * 0.55);
+                    const midY = p.y + ny * side * ((baseLen + swing) * 0.55);
+
+                    // fade legs toward tail for depth
+                    const legAlpha = Math.max(0.12, 0.95 - (i/pts.length) * 0.7);
+                    ctx.globalAlpha = legAlpha;
+                    ctx.strokeStyle = 'rgba(20,20,20,1)';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y + 2);
+                    ctx.lineTo(midX, midY);
+                    ctx.lineTo(tipX, tipY);
+                    ctx.stroke();
+
+                    // toes / tips
+                    if (toesEnabled) {
+                        ctx.fillStyle = 'rgba(15,15,15,0.95)';
+                        ctx.beginPath(); ctx.arc(tipX, tipY, 2.2, 0, Math.PI*2); ctx.fill();
+                        // little joint circle
+                        ctx.beginPath(); ctx.arc(midX, midY, 1.2, 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+                ctx.restore();
+
+                // draw smooth body using stroke with round caps using pts
+                ctx.save();
+                const grad = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+                grad.addColorStop(0,'#f0f9ff');
+                grad.addColorStop(0.3,'#93c5fd');
+                grad.addColorStop(1,'#7c3aed');
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = 22;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+                ctx.stroke();
+                ctx.restore();
+
+                // inner stripe
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+                ctx.stroke();
+                ctx.restore();
+
+                // ===== DRAW LEGS ON TOP (after body) for visibility =====
+                if (typeof legPtsForLater !== 'undefined' && legPtsForLater) {
+                    ctx.save();
+                    ctx.lineWidth = 4.5;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    for (let i=1;i<legPtsForLater.length;i++){
+                        const p = legPtsForLater[i];
+                        // find local tangent using neighbors
+                        const prev = legPtsForLater[i-1] || legPtsForLater[i];
+                        const next = legPtsForLater[i+1] || legPtsForLater[i-1] || legPtsForLater[i];
+                        const tx = next.x - prev.x;
+                        const ty = next.y - prev.y;
+                        const tlen = Math.hypot(tx,ty) || 1;
+                        const nx = -ty / tlen; // perpendicular
+                        const ny = tx / tlen;
+                        // alternate sides and animate swing
+                        const side = (i % 2 === 0) ? 1 : -1;
+                        const legPhase = time * 12 + i * 0.7;
+                        const swing = Math.sin(legPhase) * legSwingAmp; // leg swing uses global
+                        const baseLen = legLengthBase + (i % 3); // slight variety
+                        const tipX = p.x + nx * side * (baseLen + swing);
+                        const tipY = p.y + ny * side * (baseLen + swing);
+                        // draw a two-segment leg for a natural bend
+                        const midX = p.x + nx * side * ((baseLen + swing) * 0.55);
+                        const midY = p.y + ny * side * ((baseLen + swing) * 0.55);
+
+                        // fade legs toward tail but keep them visible
+                        const legAlpha = Math.max(0.6, 1.0 - (i/legPtsForLater.length) * 0.35);
+                        ctx.globalAlpha = legAlpha;
+                        ctx.strokeStyle = '#333333';
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y + 2);
+                        ctx.lineTo(midX, midY);
+                        ctx.lineTo(tipX, tipY);
+                        ctx.stroke();
+
+                        // toes / tips - visible dark joints
+                        if (toesEnabled) {
+                            ctx.fillStyle = '#222222';
+                            ctx.globalAlpha = Math.min(1, legAlpha * 1.15);
+                            ctx.beginPath(); ctx.arc(tipX, tipY, 3, 0, Math.PI*2); ctx.fill();
+                            // little joint circle in the middle
+                            ctx.beginPath(); ctx.arc(midX, midY, 1.8, 0, Math.PI*2); ctx.fill();
+                        }
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.restore();
+                }
+
+                // store lastPts for head drawing
+                var lastPts = pts;
+            } else var lastPts = null;
+
+            // draw head with eyes
+            if (visual.length>0){
+                // prefer slither-augmented head position when available
+                const head = (typeof lastPts !== 'undefined' && lastPts && lastPts.length>0) ? {x: lastPts[0].x-10, y: lastPts[0].y-10} : visual[0];
+                // determine forward vector (from second to head) for eye placement
+                let fx=1, fy=0;
+                if (visual.length>1){
+                    fx = visual[0].x - visual[1].x;
+                    fy = visual[0].y - visual[1].y;
+                    const len = Math.hypot(fx,fy) || 1; fx/=len; fy/=len;
+                } else {
+                    if (direction==='left'){fx=-1;fy=0} else if(direction==='right'){fx=1;fy=0} else if(direction==='up'){fx=0;fy=-1} else {fx=0;fy=1}
+                }
+                // perpendicular vector
+                const px = -fy, py = fx;
+
+                // head circle
+                ctx.save();
+                ctx.fillStyle = '#111827';
+                ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.beginPath(); ctx.arc(head.x+10, head.y+10, 12, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+
+                // eyes
+                const eyeOffset = 6;
+                const eyeSeparation = 6;
+                const eye1x = head.x+10 + fx*eyeOffset + px*eyeSeparation;
+                const eye1y = head.y+10 + fy*eyeOffset + py*eyeSeparation;
+                const eye2x = head.x+10 + fx*eyeOffset - px*eyeSeparation;
+                const eye2y = head.y+10 + fy*eyeOffset - py*eyeSeparation;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(eye1x, eye1y, 3.2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(eye2x, eye2y, 3.2, 0, Math.PI*2); ctx.fill();
+                // pupils
+                ctx.fillStyle = '#000';
+                const pupilShift = 1.4;
+                ctx.beginPath(); ctx.arc(eye1x + fx*pupilShift, eye1y + fy*pupilShift, 1.6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(eye2x + fx*pupilShift, eye2y + fy*pupilShift, 1.6, 0, Math.PI*2); ctx.fill();
+
+                // tongue flick animation - uses timestamp for smooth oscillation
+                // compute a time-based phase
+                const t = (timestamp || performance.now()) / 1000; // seconds
+                const flickSpeed = 8; // speed multiplier
+                const flick = Math.sin(t * flickSpeed) * 0.6; // -0.6..0.6
+                const baseLength = 12;
+                const amp = 6; // tongue length amplitude
+                const tongueLen = baseLength + amp * Math.abs(flick);
+                // tongue width wobble
+                const wobble = Math.sin(t * flickSpeed * 2) * 0.9;
+
+                // tongue start and end points
+                const sx = head.x + 10 + fx * 8; // mouth start
+                const sy = head.y + 10 + fy * 8;
+                const ex = head.x + 10 + fx * tongueLen + px * wobble * 3;
+                const ey = head.y + 10 + fy * tongueLen + py * wobble * 3;
+
+                // draw tongue (darker base)
+                ctx.save();
+                ctx.strokeStyle = '#7f1d1d';
+                ctx.lineWidth = 3.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.quadraticCurveTo((sx+ex)/2 + px * flick * 6, (sy+ey)/2 + py * flick * 6, ex, ey);
+                ctx.stroke();
+                ctx.restore();
+
+                // inner tongue (highlight)
+                ctx.save();
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 1.6;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(sx + fx*1, sy + fy*1);
+                ctx.quadraticCurveTo((sx+ex)/2 + px * flick * 4, (sy+ey)/2 + py * flick * 4, ex - fx*1, ey - fy*1);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            rafId = requestAnimationFrame(render);
+        }
+
+        function handleKeyPress(e) {
+            // use arrow keys / WASD
+            const key = e.key;
+            if ((key === 'ArrowLeft' || key === 'a') && direction !== 'right') nextDirection = 'left';
+            else if ((key === 'ArrowUp' || key === 'w') && direction !== 'down') nextDirection = 'up';
+            else if ((key === 'ArrowRight' || key === 'd') && direction !== 'left') nextDirection = 'right';
+            else if ((key === 'ArrowDown' || key === 's') && direction !== 'up') nextDirection = 'down';
+        }
+
+        // Keyboard event listeners
+        document.addEventListener('keydown', handleKeyPress);
+
+        // Touch controls for mobile/tablet
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const threshold = 30;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX > threshold && direction !== 'left') nextDirection = 'right';
+                else if (deltaX < -threshold && direction !== 'right') nextDirection = 'left';
+            } else {
+                if (deltaY > threshold && direction !== 'up') nextDirection = 'down';
+                else if (deltaY < -threshold && direction !== 'down') nextDirection = 'up';
+            }
+        }, { passive: true });
+
+        // UI buttons
+        startPauseBtn.addEventListener('click', ()=>{
+            if (running) pauseGame(); else startGame();
+        });
+        resetBtn.addEventListener('click', ()=>{ resetGame(); startGame(); });
+        overlayRestart.addEventListener('click', ()=>{ resetGame(); startGame(); hideOverlay(); });
+        overlayClose.addEventListener('click', hideOverlay);
+
+        function showOverlay(title,msg){ overlayTitle.textContent = title; overlayMsg.textContent = msg; overlay.style.display = 'block'; }
+        function hideOverlay(){ overlay.style.display = 'none'; }
+
+        // Drawing helpers for food types
+        function drawFood(item){
+            if (!item || typeof item.type === 'undefined') return;
+            const x = item.x, y = item.y;
+            ctx.save();
+            if (item.type === 'mouse') {
+                // mouse body
+                ctx.translate(x+10,y+8);
+                ctx.fillStyle = '#b49b7c';
+                ctx.beginPath(); ctx.ellipse(0,2,10,7,0,0,Math.PI*2); ctx.fill();
+                // head
+                ctx.beginPath(); ctx.arc(11,0,6,0,Math.PI*2); ctx.fill();
+                // ear
+                ctx.fillStyle = '#d6b89a'; ctx.beginPath(); ctx.arc(13,-4,3.2,0,Math.PI*2); ctx.fill();
+                // tail
+                ctx.strokeStyle = '#8b6b4c'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-10,2); ctx.quadraticCurveTo(-18,-2,-24,8); ctx.stroke();
+                // eye
+                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(13,-1.2,1.2,0,Math.PI*2); ctx.fill();
+                // whiskers
+                ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(9,1); ctx.lineTo(2,0); ctx.moveTo(9,2); ctx.lineTo(3,4); ctx.stroke();
+                ctx.setTransform(1,0,0,1,0,0);
+            } else if (item.type === 'egg'){
+                // egg with slight crack
+                ctx.translate(x+10,y+10);
+                // shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.ellipse(0,8,10,4,0,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff6e6'; ctx.beginPath(); ctx.ellipse(0,0,9,12,0,0,Math.PI*2); ctx.fill();
+                // crack
+                ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-2,2); ctx.lineTo(0,6); ctx.lineTo(3,2); ctx.stroke();
+                ctx.setTransform(1,0,0,1,0,0);
+            } else if (item.type === 'frog'){
+                // cute frog
+                ctx.translate(x+10,y+10);
+                ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.ellipse(0,0,10,8,0,0,Math.PI*2); ctx.fill();
+                // eyes
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4,-6,3,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(4,-6,3,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#063e14'; ctx.beginPath(); ctx.arc(-4,-6,1.1,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(4,-6,1.1,0,Math.PI*2); ctx.fill();
+                // mouth
+                ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-4,2); ctx.quadraticCurveTo(0,6,4,2); ctx.stroke();
+                ctx.setTransform(1,0,0,1,0,0);
+            }
+            ctx.restore();
+        }
+    </script>
+</body>
+</html>
